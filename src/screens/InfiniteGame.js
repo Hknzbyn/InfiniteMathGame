@@ -2,21 +2,15 @@ import React, { Component } from 'react';
 import {
   TouchableWithoutFeedback,
   Animated,
-  Platform,
   StyleSheet,
   View,
-  Button,
   Text,
   Dimensions,
-  TextInput,
-  KeyboardAvoidingView,
   TouchableOpacity,
   Alert,
-  BackHandler,
-  Modal,
-  Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ModalGo, ModalEnd } from '../components/Modals';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -63,12 +57,30 @@ export default class RandomNumber extends Component {
       timer: null,
       addSec: false,
       animation: new Animated.Value(0),
-      modalVisible: true,
+      modalGoVisible: true,
+      modalEndVisible: false,
     };
   }
+  componentDidUpdate = (prevState, prevProps) => {
+    if (prevState.modalGoVisible === false) {
+      console.log('DidUpdate...');
+    }
+  };
+  componentDidMount = () => {
+    this.getBestScore();
+    this.newQue();
+  };
 
-  setModalVisible = (visible) => {
-    this.setState({ modalVisible: visible });
+  componentWillUnmount() {
+    clearInterval(this.state.timer);
+  };
+
+  setmodalGoVisible = (visible) => {
+    this.setState({ modalGoVisible: visible });
+    if (visible == false) {
+      this.StartAnimation('start');
+      this.startTimer();
+    }
   };
 
   //En iyi score u kontrol eden fonksiyon
@@ -84,14 +96,10 @@ export default class RandomNumber extends Component {
   };
 
   //Yanlış cevap verildiği zaman çağırılan fonksiyon
-  Alert = async () => {
+  OpenEndModal = async (visible) => {
+    
+    this.setState({ modalEndVisible: !visible });
     this.checkBestScore();
-    const { score } = this.state;
-
-    Alert.alert('Başaramadık Abi', `Score:`, [
-      { text: 'TryAgain', onPress: () => this.tryAgain() },
-      { text: 'Exit', onPress: () => BackHandler },
-    ]);
   };
 
   //Zamana süre ekleyen fonksiyon
@@ -117,7 +125,7 @@ export default class RandomNumber extends Component {
     const { score, counter } = this.state;
 
     if (counter === 0) {
-      this.Alert();
+      this.OpenEndModal();
       clearInterval(this.state.timer);
     } else if (counter > 100) {
       this.setState({
@@ -143,12 +151,11 @@ export default class RandomNumber extends Component {
     }
   };
 
-  componentWillUnmount() {
-    clearInterval(this.state.timer);
-  }
 
   //Yeni Soru getiren ve state de ki değerleri default hale getiren fonksiyon
   tryAgain = () => {
+  this.setState({modalEndVisible:false})
+
     const { bestscore } = this.state;
 
     this.setState({
@@ -188,7 +195,7 @@ export default class RandomNumber extends Component {
     this.startTimer();
   };
 
-  componentDidMount = () => {
+  startGame = () => {
     setTimeout(() => {
       this.getBestScore();
       this.newQue();
@@ -207,7 +214,7 @@ export default class RandomNumber extends Component {
       this.newQue();
       this.addTenSec();
     } else {
-      this.Alert();
+      this.OpenEndModal();
       this.stopTimer();
 
       this.setState({
@@ -276,16 +283,16 @@ export default class RandomNumber extends Component {
     let { corrects } = this.state;
 
     for (let i = corrects.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * i);
+      const j = Math.floor(Math.random() * (i+1));
       const temp = corrects[i];
       corrects[i] = corrects[j];
       corrects[j] = temp;
 
       this.setState({
-        correct0: corrects[j],
-        correct1: corrects[j + 1],
+        corrects0: corrects[j],
+        correct1: corrects[j + 3],
         correct2: corrects[j + 2],
-        correct3: corrects[j + 3],
+        correct3: corrects[j + 1],
       });
     }
   };
@@ -312,14 +319,14 @@ export default class RandomNumber extends Component {
         option6: options[j + 6],
         option7: options[j + 7],
       });
-      console.log('option0:' + options[j + 1]);
-      console.log('option1:' + options[j + 2]);
-      console.log('option2:' + options[j + 3]);
-      console.log('option3:' + options[j + 4]);
-      console.log('option4:' + options[j + 5]);
-      console.log('option5:' + options[j + 6]);
-      console.log('option6:' + options[j + 7]);
-      console.log('option7:' + options[j]);
+      // console.log('option0:' + options[j + 1]);
+      // console.log('option1:' + options[j + 2]);
+      // console.log('option2:' + options[j + 3]);
+      // console.log('option3:' + options[j + 4]);
+      // console.log('option4:' + options[j + 5]);
+      // console.log('option5:' + options[j + 6]);
+      // console.log('option6:' + options[j + 7]);
+      // console.log('option7:' + options[j]);
     }
 
     a[3] = truecorrect;
@@ -528,15 +535,23 @@ export default class RandomNumber extends Component {
           useNativeDriver: false,
           duration: this.state.counter * 1000,
           toValue: 0,
-        }).start
+        }).start;
         this.setState((state) => ({ addSec: false }));
       });
     }
   }
   render() {
-    const { questionArea, answerArea, NumberTextArea, headerArea, timerArea } =
-      styles;
-    const { modalVisible } = this.state;
+    const {
+      questionArea,
+      answerArea,
+      NumberTextArea,
+      headerArea,
+      timerArea,
+      centeredView,
+      containerview,
+      
+    } = styles;
+    const { modalGoVisible, modalEndVisible } = this.state;
     const progressInterpolate = this.state.animation.interpolate({
       inputRange: [0, 1, 2],
       outputRange: ['100%', '0%', '+30%'],
@@ -549,7 +564,7 @@ export default class RandomNumber extends Component {
     };
 
     return (
-      <View style={styles.containerview}>
+      <View style={containerview}>
         <View style={headerArea}>
           <Text style={{ fontSize: 20, color: 'white' }}>
             BESTSCORE--{this.state.bestscore}
@@ -584,26 +599,18 @@ export default class RandomNumber extends Component {
           {this.correctBox(this.state.corrects[3])}
         </View>
 
-        <View style={styles.centeredView}>
-          <Modal
-            animationType='none'
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => {
-              
-              this.setModalVisible(!modalVisible);
-            }}>
-            <View style={styles.centeredView}>
-              <View style={styles.modalView}>
-                <Pressable
-                  style={[styles.button, styles.buttonClose]}
-                  onPress={() => this.setModalVisible(!modalVisible)}>
-                  <Text style={styles.textStyle}>GO</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Modal>
-          
+        <View style={centeredView}>
+          <ModalGo
+            modalGoVisible={modalGoVisible}
+            onPress={() => this.setmodalGoVisible(!modalGoVisible)}
+          />
+
+          <ModalEnd
+            modalEndVisible={modalEndVisible}
+            bestScore={this.state.bestscore}
+            score={this.state.score}
+            onPressRetry={() => this.tryAgain()}
+          />
         </View>
       </View>
     );
@@ -709,47 +716,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 0,
-  },
-  modalView: {
-    height:'100%',
-    width:width,
-    margin: 20,
-    backgroundColor: '#35495E',
-    borderRadius: 0,
-    padding: 35,
-    justifyContent:'center',
-    alignItems:'center',
-        shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  button: {
-    height:150,
-    width:150,
-    borderRadius: 150,
-    padding: 10,
-    elevation: 2,
-    justifyContent:'center',
-    alignItems:'center'
-  },
-  buttonOpen: {
-    backgroundColor: '#F194FF',
-  },
-  buttonClose: {
-    backgroundColor: '#347474',
-  },
-  textStyle: {
-    color: 'white',
-    fontSize:50,
-    textAlign: 'center',
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: 'center',
   },
 });
